@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robertito.js Demo</title>
+    <script defer src="robertito.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 { border-bottom: 2px solid #000; padding-bottom: 10px; }
+        h2 { margin-top: 40px; border-bottom: 1px solid #000; }
+        button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+        input, select, textarea { padding: 8px; margin: 5px 0; }
+        .demo { border: 1px solid #000; padding: 20px; margin: 20px 0; }
+        ul { list-style: none; padding: 0; }
+        li { padding: 5px 0; }
+        .code-container {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-top: 10px;
+            overflow-x: auto;
+        }
+        .code-container pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .show-code-btn {
+            background: #000;
+            color: #fff;
+            border: none;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Robertito.js Demo</h1>
+
+    <!-- Demo 1: Contador -->
+    <div class="demo" r-data="{ mostrarCodigo1: false }">
+        <h2>1. Contador Simple</h2>
+        <div r-data="{ contador: 0 }">
+            <h3 r-text="contador"></h3>
+            <button @click="contador++">Incrementar</button>
+            <button @click="contador--">Decrementar</button>
+            <button @click="contador = 0">Resetear</button>
+        </div>
+        <button class="show-code-btn" @click="mostrarCodigo1 = !mostrarCodigo1">
+            <span r-text="mostrarCodigo1 ? '▼ Ocultar código' : '▶ Ver código'"></span>
+        </button>
+        <div class="code-container" r-show="mostrarCodigo1">
+            <pre>&lt;div r-data="{ contador: 0 }"&gt;
+    &lt;h3 r-text="contador"&gt;&lt;/h3&gt;
+    &lt;button @click="contador++"&gt;Incrementar&lt;/button&gt;
+    &lt;button @click="contador--"&gt;Decrementar&lt;/button&gt;
+    &lt;button @click="contador = 0"&gt;Resetear&lt;/button&gt;
+&lt;/div&gt;</pre>
+        </div>
+    </div>
+
+    <!-- Demo 2: Input de Texto -->
+    <div class="demo" r-data="{ mostrarCodigo2: false }">
+        <h2>2. Input de Texto (r-model)</h2>
+        <div r-data="{ mensaje: 'Hola Mundo' }">
+            <input type="text" r-model="mensaje" placeholder="Escribe algo...">
+            <p>Escribiste: <strong r-text="mensaje"></strong></p>
+        </div>
+        <button class="show-code-btn" @click="mostrarCodigo2 = !mostrarCodigo2">
+            <span r-text="mostrarCodigo2 ? '▼ Ocultar código' : '▶ Ver código'"></span>
+        </button>
+        <div class="code-container" r-show="mostrarCodigo2">
+            <pre>&lt;div r-data="{ mensaje: 'Hola Mundo' }"&gt;
+    &lt;input type="text" r-model="mensaje" placeholder="Escribe algo..."&gt;
+    &lt;p&gt;Escribiste: &lt;strong r-text="mensaje"&gt;&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;</pre>
+        </div>
+    </div>
+
+    <!-- Demo 3: Mostrar/Ocultar -->
+    <div class="demo" r-data="{ mostrarCodigo3: false }">
+        <h2>3. Mostrar/Ocultar (r-show)</h2>
+        <div r-data="{ visible: true }">
+            <button @click="visible = !visible">Alternar</button>
+            <p r-show="visible">¡Este texto se puede ocultar!</p>
+            <p r-show="!visible">¡Ahora me ves!</p>
+        </div>
+        <button class="show-code-btn" @click="mostrarCodigo3 = !mostrarCodigo3">
+            <span r-text="mostrarCodigo3 ? '▼ Ocultar código' : '▶ Ver código'"></span>
+        </button>
+        <div class="code-container" r-show="mostrarCodigo3">
+            <pre>&lt;div r-data="{ visible: true }"&gt;
+    &lt;button @click="visible = !visible"&gt;Alternar&lt;/button&gt;
+    &lt;p r-show="visible"&gt;¡Este texto se puede ocultar!&lt;/p&gt;
+    &lt;p r-show="!visible"&gt;¡Ahora me ves!&lt;/p&gt;
+&lt;/div&gt;</pre>
+        </div>
+    </div>
+
+    <!-- Demo 4: Lista con r-for -->
+    <div class="demo" r-data="{ mostrarCodigo4: false }">
+        <h2>4. Lista de Tareas (r-for)</h2>
+        <div r-data="ListaTareas()">
+            <input
+                r-model="nuevaTarea"
+                @keyup.enter="agregar()"
+                placeholder="Agregar una tarea...">
+            <button @click="agregar()">Agregar</button>
+
+            <ul>
+                <template r-for="(tarea, index) in tareas">
+                    <li>
+                        <input
+                            type="checkbox"
+                            :checked="tarea.completada"
+                            @change="alternar(index)">
+                        <span :style="{ textDecoration: tarea.completada ? 'line-through' : 'none' }" r-text="tarea.texto"></span>
+                        <button @click="eliminar(index)">Eliminar</button>
+                    </li>
+                </template>
+            </ul>
+
+            <p r-show="tareas.length === 0">No hay tareas todavía</p>
+            <p r-show="tareas.length > 0">Total: <span r-text="tareas.length"></span> tareas</p>
+        </div>
+        <button class="show-code-btn" @click="mostrarCodigo4 = !mostrarCodigo4">
+            <span r-text="mostrarCodigo4 ? '▼ Ocultar código' : '▶ Ver código'"></span>
+        </button>
+        <div class="code-container" r-show="mostrarCodigo4">
+            <pre>&lt;div r-data="ListaTareas()"&gt;
+    &lt;input r-model="nuevaTarea" @keyup.enter="agregar()" placeholder="Agregar una tarea..."&gt;
+    &lt;button @click="agregar()"&gt;Agregar&lt;/button&gt;
+    &lt;ul&gt;
+        &lt;template r-for="(tarea, index) in tareas"&gt;
+            &lt;li&gt;
+                &lt;input type="checkbox" :checked="tarea.completada" @change="alternar(index)"&gt;
+                &lt;span :style="{ textDecoration: tarea.completada ? 'line-through' : 'none' }"
+                      r-text="tarea.texto"&gt;&lt;/span&gt;
+                &lt;button @click="eliminar(index)"&gt;Eliminar&lt;/button&gt;
+            &lt;/li&gt;
+        &lt;/template&gt;
+    &lt;/ul&gt;
+    &lt;p r-show="tareas.length === 0"&gt;No hay tareas todavía&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;script&gt;
+function ListaTareas() {
+    return {
+        tareas: [],
+        nuevaTarea: '',
+        agregar() {
+            if (this.nuevaTarea.trim()) {
+                this.tareas.push({ texto: this.nuevaTarea, completada: false });
+                this.nuevaTarea = '';
+            }
+        },
+        eliminar(index) { this.tareas.splice(index, 1); },
+        alternar(index) { this.tareas[index].completada = !this.tareas[index].completada; }
+    }
+}
+&lt;/script&gt;</pre>
+        </div>
+    </div>
+
+    <!-- Demo 5: Formulario con validación -->
+    <div class="demo" r-data="{ mostrarCodigo5: false }">
+        <h2>5. Formulario con Validación</h2>
+        <div r-data="FormularioContacto()">
+            <form @submit.prevent="enviar()">
+                <div>
+                    <input type="text" r-model="nombre" placeholder="Nombre">
+                </div>
+                <div>
+                    <input type="email" r-model="email" placeholder="Email">
+                </div>
+                <p r-show="error" r-text="error" style="color: #000; font-weight: bold;"></p>
+                <p r-show="exito" r-text="exito" style="color: #000; font-weight: bold;"></p>
+                <button type="submit" :disabled="enviando">
+                    <span r-text="enviando ? 'Enviando...' : 'Enviar'"></span>
+                </button>
+            </form>
+        </div>
+        <button class="show-code-btn" @click="mostrarCodigo5 = !mostrarCodigo5">
+            <span r-text="mostrarCodigo5 ? '▼ Ocultar código' : '▶ Ver código'"></span>
+        </button>
+        <div class="code-container" r-show="mostrarCodigo5">
+            <pre>&lt;div r-data="FormularioContacto()"&gt;
+    &lt;form @submit.prevent="enviar()"&gt;
+        &lt;input type="text" r-model="nombre" placeholder="Nombre"&gt;
+        &lt;input type="email" r-model="email" placeholder="Email"&gt;
+        &lt;p r-show="error" r-text="error"&gt;&lt;/p&gt;
+        &lt;button type="submit" :disabled="enviando"&gt;
+            &lt;span r-text="enviando ? 'Enviando...' : 'Enviar'"&gt;&lt;/span&gt;
+        &lt;/button&gt;
+    &lt;/form&gt;
+&lt;/div&gt;</pre>
+        </div>
+    </div>
+
+    <!-- Demo 6: Select / Desplegable -->
+    <div class="demo" r-data="{ mostrarCodigo6: false }">
+        <h2>6. Select Desplegable</h2>
+        <div r-data="{ pais: 'ar' }">
+            <select r-model="pais">
+                <option value="us">Estados Unidos</option>
+                <option value="uk">Reino Unido</option>
+                <option value="es">España</option>
+                <option value="ar">Argentina</option>
+            </select>
+            <p>Seleccionado: <strong r-text="pais"></strong></p>
+        </div>
+        <button class="show-code-btn" @click="mostrarCodigo6 = !mostrarCodigo6">
+            <span r-text="mostrarCodigo6 ? '▼ Ocultar código' : '▶ Ver código'"></span>
+        </button>
+        <div class="code-container" r-show="mostrarCodigo6">
+            <pre>&lt;div r-data="{ pais: 'ar' }"&gt;
+    &lt;select r-model="pais"&gt;
+        &lt;option value="us"&gt;Estados Unidos&lt;/option&gt;
+        &lt;option value="uk"&gt;Reino Unido&lt;/option&gt;
+        &lt;option value="es"&gt;España&lt;/option&gt;
+        &lt;option value="ar"&gt;Argentina&lt;/option&gt;
+    &lt;/select&gt;
+    &lt;p&gt;Seleccionado: &lt;strong r-text="pais"&gt;&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;</pre>
+        </div>
+    </div>
+
+    <!-- Demo 7: Pestañas -->
+    <div class="demo" r-data="{ mostrarCodigo7: false }">
+        <h2>7. Pestañas</h2>
+        <div r-data="{ pestana: 'inicio' }">
+            <div>
+                <button @click="pestana = 'inicio'" :style="{ fontWeight: pestana === 'inicio' ? 'bold' : 'normal' }">
+                    Inicio
+                </button>
+                <button @click="pestana = 'acerca'" :style="{ fontWeight: pestana === 'acerca' ? 'bold' : 'normal' }">
+                    Acerca de
+                </button>
+                <button @click="pestana = 'contacto'" :style="{ fontWeight: pestana === 'contacto' ? 'bold' : 'normal' }">
+                    Contacto
+                </button>
+            </div>
+            <div r-show="pestana === 'inicio'">
+                <h3>Inicio</h3>
+                <p>Bienvenido a la página de inicio.</p>
+            </div>
+            <div r-show="pestana === 'acerca'">
+                <h3>Acerca de</h3>
+                <p>Esta es la sección acerca de.</p>
+            </div>
+            <div r-show="pestana === 'contacto'">
+                <h3>Contacto</h3>
+                <p>Información de contacto aquí.</p>
+            </div>
+        </div>
+        <button class="show-code-btn" @click="mostrarCodigo7 = !mostrarCodigo7">
+            <span r-text="mostrarCodigo7 ? '▼ Ocultar código' : '▶ Ver código'"></span>
+        </button>
+        <div class="code-container" r-show="mostrarCodigo7">
+            <pre>&lt;div r-data="{ pestana: 'inicio' }"&gt;
+    &lt;button @click="pestana = 'inicio'" :style="{ fontWeight: pestana === 'inicio' ? 'bold' : 'normal' }"&gt;
+        Inicio
+    &lt;/button&gt;
+    &lt;button @click="pestana = 'acerca'"&gt;Acerca de&lt;/button&gt;
+    &lt;button @click="pestana = 'contacto'"&gt;Contacto&lt;/button&gt;
+
+    &lt;div r-show="pestana === 'inicio'"&gt;&lt;h3&gt;Inicio&lt;/h3&gt;&lt;/div&gt;
+    &lt;div r-show="pestana === 'acerca'"&gt;&lt;h3&gt;Acerca de&lt;/h3&gt;&lt;/div&gt;
+    &lt;div r-show="pestana === 'contacto'"&gt;&lt;h3&gt;Contacto&lt;/h3&gt;&lt;/div&gt;
+&lt;/div&gt;</pre>
+        </div>
+    </div>
+
+    <!-- Demo 8: Valores calculados -->
+    <div class="demo" r-data="{ mostrarCodigo8: false }">
+        <h2>8. Cálculos Reactivos</h2>
+        <div r-data="Calculadora()">
+            <input type="number" r-model="a" placeholder="Número 1">
+            <input type="number" r-model="b" placeholder="Número 2">
+            <p>Suma: <strong r-text="Number(a) + Number(b)"></strong></p>
+            <p>Producto: <strong r-text="Number(a) * Number(b)"></strong></p>
+        </div>
+        <button class="show-code-btn" @click="mostrarCodigo8 = !mostrarCodigo8">
+            <span r-text="mostrarCodigo8 ? '▼ Ocultar código' : '▶ Ver código'"></span>
+        </button>
+        <div class="code-container" r-show="mostrarCodigo8">
+            <pre>&lt;div r-data="{ a: 0, b: 0 }"&gt;
+    &lt;input type="number" r-model="a" placeholder="Número 1"&gt;
+    &lt;input type="number" r-model="b" placeholder="Número 2"&gt;
+    &lt;p&gt;Suma: &lt;strong r-text="Number(a) + Number(b)"&gt;&lt;/strong&gt;&lt;/p&gt;
+    &lt;p&gt;Producto: &lt;strong r-text="Number(a) * Number(b)"&gt;&lt;/strong&gt;&lt;/p&gt;
+&lt;/div&gt;</pre>
+        </div>
+    </div>
+
+    <script>
+        // Componente Lista de Tareas
+        function ListaTareas() {
+            return {
+                tareas: [],
+                nuevaTarea: '',
+
+                agregar() {
+                    if (this.nuevaTarea.trim()) {
+                        this.tareas.push({
+                            texto: this.nuevaTarea,
+                            completada: false
+                        });
+                        this.nuevaTarea = '';
+                    }
+                },
+
+                eliminar(index) {
+                    this.tareas.splice(index, 1);
+                },
+
+                alternar(index) {
+                    this.tareas[index].completada = !this.tareas[index].completada;
+                }
+            }
+        }
+
+        // Componente Formulario de Contacto
+        function FormularioContacto() {
+            return {
+                nombre: '',
+                email: '',
+                error: '',
+                exito: '',
+                enviando: false,
+
+                enviar() {
+                    this.error = '';
+                    this.exito = '';
+
+                    if (!this.nombre || !this.email) {
+                        this.error = 'Todos los campos son requeridos';
+                        return;
+                    }
+
+                    if (!this.email.includes('@')) {
+                        this.error = 'Dirección de email inválida';
+                        return;
+                    }
+
+                    this.enviando = true;
+
+                    // Simular llamada API
+                    setTimeout(() => {
+                        this.exito = '¡Formulario enviado exitosamente!';
+                        this.nombre = '';
+                        this.email = '';
+                        this.enviando = false;
+                    }, 1000);
+                }
+            }
+        }
+
+        // Componente Calculadora
+        function Calculadora() {
+            return {
+                a: 0,
+                b: 0,
+
+                suma() {
+                    return Number(this.a) + Number(this.b);
+                },
+
+                producto() {
+                    return Number(this.a) * Number(this.b);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

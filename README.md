@@ -1,6 +1,6 @@
 # ROBERTITO.JS v1.0.0
 
-Framework reactivo minimalista 100% en español para crear interfaces de usuario dinámicas.
+Framework reactivo minimalista para crear interfaces de usuario dinámicas.
 
 **Desarrollado por**: Roberto Miguel Costi
 
@@ -11,18 +11,18 @@ Framework reactivo minimalista 100% en español para crear interfaces de usuario
 - [Instalación](#instalación)
 - [Inicio Rápido](#inicio-rápido)
 - [Directivas](#directivas)
-  - [r-datos](#r-datos)
-  - [r-inicio](#r-inicio)
-  - [r-mostrar](#r-mostrar)
-  - [r-texto](#r-texto)
-  - [r-modelo](#r-modelo)
-  - [r-para](#r-para)
-  - [r-enlace](#r-enlace-o-)
-  - [r-evento](#r-evento-o-)
-  - [r-efecto](#r-efecto)
+  - [r-data](#r-data)
+  - [r-init](#r-init)
+  - [r-show](#r-show)
+  - [r-text](#r-text)
+  - [r-model](#r-model)
+  - [r-for](#r-for)
+  - [r-bind](#r-bind-o-)
+  - [r-on](#r-on-o-)
+  - [r-effect](#r-effect)
 - [Propiedades Mágicas](#propiedades-mágicas)
-  - [$elemento](#elemento)
-  - [$siguienteCiclo](#siguienteciclo)
+  - [$element](#element)
+  - [$nextTick](#nexttick)
 - [Ejemplos](#ejemplos)
 - [Licencia](#licencia)
 
@@ -43,8 +43,8 @@ Incluir robertito.js en tu HTML:
     <!-- <script defer src="/lib/robertito.js"></script> -->
 </head>
 <body>
-    <div r-datos="{ contador: 0 }">
-        <button @click="contador++">Clicks: <span r-texto="contador"></span></button>
+    <div r-data="{ count: 0 }">
+        <button @click="count++">Clicks: <span r-text="count"></span></button>
     </div>
 </body>
 </html>
@@ -62,27 +62,27 @@ Incluir robertito.js en tu HTML:
 ### Componente básico
 
 ```html
-<div r-datos="{ mensaje: 'Hola Mundo' }">
-    <p r-texto="mensaje"></p>
+<div r-data="{ message: 'Hello World' }">
+    <p r-text="message"></p>
 </div>
 ```
 
 ### Componente con función
 
 ```html
-<div r-datos="Contador()">
-    <button @click="incrementar()">
-        Contador: <span r-texto="contador"></span>
+<div r-data="Counter()">
+    <button @click="increment()">
+        Count: <span r-text="count"></span>
     </button>
 </div>
 
 <script>
-function Contador() {
+function Counter() {
     return {
-        contador: 0,
+        count: 0,
 
-        incrementar() {
-            this.contador++;
+        increment() {
+            this.count++;
         }
     }
 }
@@ -93,38 +93,38 @@ function Contador() {
 
 ## Directivas
 
-### `r-datos`
+### `r-data`
 
 Define los datos reactivos del componente.
 
 **Uso:**
 ```html
 <!-- Objeto literal -->
-<div r-datos="{ nombre: 'Roberto', edad: 25 }">
-    <p r-texto="nombre"></p>
+<div r-data="{ name: 'Roberto', age: 25 }">
+    <p r-text="name"></p>
 </div>
 
 <!-- Función que retorna objeto -->
-<div r-datos="Usuario()">
-    <p r-texto="nombre"></p>
+<div r-data="User()">
+    <p r-text="name"></p>
 </div>
 
 <!-- Alcance vacío (hereda del padre) -->
-<div r-datos="">
+<div r-data="">
     <!-- Accede a datos del componente padre -->
 </div>
 ```
 
 **Inicialización automática con `init()`:**
 ```javascript
-function MiComponente() {
+function MyComponent() {
     return {
-        datos: null,
+        data: null,
 
         // Se ejecuta automáticamente al inicializar
         init() {
-            console.log('Componente listo');
-            this.datos = 'Inicializado';
+            console.log('Component ready');
+            this.data = 'Initialized';
         }
     }
 }
@@ -132,14 +132,14 @@ function MiComponente() {
 
 **Inicialización asíncrona:**
 ```javascript
-function AppConAPI() {
+function AppWithAPI() {
     return {
-        usuarios: [],
+        users: [],
 
         async init() {
             // Los hijos se procesan DESPUÉS de que termine esto
-            const respuesta = await fetch('/api/usuarios');
-            this.usuarios = await respuesta.json();
+            const response = await fetch('/api/users');
+            this.users = await response.json();
         }
     }
 }
@@ -147,181 +147,181 @@ function AppConAPI() {
 
 ---
 
-### `r-inicio`
+### `r-init`
 
 Ejecuta código cuando el elemento se inicializa.
 
 **Uso:**
 ```html
-<div r-datos="{ mensaje: '' }" r-inicio="mensaje = 'Cargado'">
-    <p r-texto="mensaje"></p>
+<div r-data="{ message: '' }" r-init="message = 'Loaded'">
+    <p r-text="message"></p>
 </div>
 
 <!-- Con async/await -->
-<div r-datos="App()" r-inicio="await cargarDatos()">
-    <!-- Se procesa después de cargarDatos() -->
+<div r-data="App()" r-init="await loadData()">
+    <!-- Se procesa después de loadData() -->
 </div>
 
 <!-- Múltiples sentencias -->
-<div r-inicio="console.log('Iniciando'); contador = 0">
+<div r-init="console.log('Starting'); counter = 0">
 </div>
 ```
 
 ---
 
-### `r-mostrar`
+### `r-show`
 
 Muestra u oculta elemento con `display: none`.
 
 **Uso:**
 ```html
-<div r-datos="{ abierto: true }">
-    <button @click="abierto = !abierto">Alternar</button>
+<div r-data="{ open: true }">
+    <button @click="open = !open">Toggle</button>
 
-    <div r-mostrar="abierto">
-        Este contenido se puede ocultar
+    <div r-show="open">
+        This content can be hidden
     </div>
 </div>
 
 <!-- Con expresiones -->
-<div r-datos="{ items: [] }">
-    <p r-mostrar="items.length === 0">No hay items</p>
-    <p r-mostrar="items.length > 0">Hay <span r-texto="items.length"></span> items</p>
+<div r-data="{ items: [] }">
+    <p r-show="items.length === 0">No items</p>
+    <p r-show="items.length > 0">There are <span r-text="items.length"></span> items</p>
 </div>
 ```
 
 ---
 
-### `r-texto`
+### `r-text`
 
 Actualiza el contenido de texto del elemento.
 
 **Uso:**
 ```html
-<div r-datos="{ nombre: 'Roberto' }">
+<div r-data="{ name: 'Roberto' }">
     <!-- Texto simple -->
-    <h1 r-texto="nombre"></h1>
+    <h1 r-text="name"></h1>
 
     <!-- Concatenación -->
-    <p r-texto="'Hola ' + nombre"></p>
+    <p r-text="'Hello ' + name"></p>
 
     <!-- Template literals -->
-    <span r-texto="`Bienvenido, ${nombre}!`"></span>
+    <span r-text="`Welcome, ${name}!`"></span>
 
     <!-- Expresiones -->
-    <p r-texto="edad >= 18 ? 'Mayor' : 'Menor'"></p>
+    <p r-text="age >= 18 ? 'Adult' : 'Minor'"></p>
 </div>
 ```
 
 ---
 
-### `r-modelo`
+### `r-model`
 
 Binding bidireccional para inputs.
 
 **Uso:**
 ```html
-<div r-datos="{
-    texto: '',
-    numero: 0,
-    activo: false,
-    opcion: 'A',
-    pais: 'ar'
+<div r-data="{
+    text: '',
+    number: 0,
+    active: false,
+    option: 'A',
+    country: 'us'
 }">
     <!-- Text input -->
-    <input type="text" r-modelo="texto">
-    <p>Escribiste: <span r-texto="texto"></span></p>
+    <input type="text" r-model="text">
+    <p>You wrote: <span r-text="text"></span></p>
 
     <!-- Number input -->
-    <input type="number" r-modelo="numero">
+    <input type="number" r-model="number">
 
     <!-- Checkbox -->
     <label>
-        <input type="checkbox" r-modelo="activo">
-        <span r-texto="activo ? 'Activo' : 'Inactivo'"></span>
+        <input type="checkbox" r-model="active">
+        <span r-text="active ? 'Active' : 'Inactive'"></span>
     </label>
 
     <!-- Radio buttons -->
-    <input type="radio" name="opcion" value="A" r-modelo="opcion"> Opción A
-    <input type="radio" name="opcion" value="B" r-modelo="opcion"> Opción B
+    <input type="radio" name="option" value="A" r-model="option"> Option A
+    <input type="radio" name="option" value="B" r-model="option"> Option B
 
     <!-- Select -->
-    <select r-modelo="pais">
-        <option value="ar">Argentina</option>
-        <option value="mx">México</option>
-        <option value="es">España</option>
+    <select r-model="country">
+        <option value="us">United States</option>
+        <option value="uk">United Kingdom</option>
+        <option value="es">Spain</option>
     </select>
 
     <!-- Textarea -->
-    <textarea r-modelo="texto"></textarea>
+    <textarea r-model="text"></textarea>
 </div>
 ```
 
 **Propiedades anidadas:**
 ```html
-<div r-datos="{ usuario: { nombre: '', email: '' } }">
-    <input r-modelo="usuario.nombre" placeholder="Nombre">
-    <input r-modelo="usuario.email" placeholder="Email">
+<div r-data="{ user: { name: '', email: '' } }">
+    <input r-model="user.name" placeholder="Name">
+    <input r-model="user.email" placeholder="Email">
 </div>
 ```
 
 ---
 
-### `r-para`
+### `r-for`
 
 Itera sobre arrays para renderizar listas.
 
-**Sintaxis:** `item en items` (en español)
+**Sintaxis:** `item in items`
 
 **Uso:**
 ```html
 <!-- Básico -->
-<div r-datos="{ frutas: ['Manzana', 'Banana', 'Naranja'] }">
+<div r-data="{ fruits: ['Apple', 'Banana', 'Orange'] }">
     <ul>
-        <template r-para="fruta en frutas">
-            <li r-texto="fruta"></li>
+        <template r-for="fruit in fruits">
+            <li r-text="fruit"></li>
         </template>
     </ul>
 </div>
 
 <!-- Con índice -->
-<div r-datos="{ items: ['A', 'B', 'C'] }">
-    <template r-para="(item, indice) en items">
+<div r-data="{ items: ['A', 'B', 'C'] }">
+    <template r-for="(item, index) in items">
         <p>
-            <span r-texto="indice + 1"></span>.
-            <span r-texto="item"></span>
+            <span r-text="index + 1"></span>.
+            <span r-text="item"></span>
         </p>
     </template>
 </div>
 
 <!-- Con objetos -->
-<div r-datos="{ usuarios: [
-    { id: 1, nombre: 'Ana' },
-    { id: 2, nombre: 'Luis' }
+<div r-data="{ users: [
+    { id: 1, name: 'Ana' },
+    { id: 2, name: 'Luis' }
 ] }">
-    <template r-para="usuario en usuarios" :clave="usuario.id">
-        <div r-texto="usuario.nombre"></div>
+    <template r-for="user in users" :key="user.id">
+        <div r-text="user.name"></div>
     </template>
 </div>
 ```
 
 **Notas importantes:**
 - Debe usarse en un `<template>`
-- Opcionalmente usa `:clave` para optimización
+- Opcionalmente usa `:key` para optimización
 - El array se actualiza automáticamente con: `push`, `pop`, `shift`, `unshift`, `splice`, `sort`, `reverse`
 
 **Agregar/eliminar items:**
 ```javascript
-function Lista() {
+function List() {
     return {
         items: [],
 
-        agregar(item) {
+        add(item) {
             this.items.push(item); // ✅ Se actualiza automáticamente
         },
 
-        eliminar(indice) {
-            this.items.splice(indice, 1); // ✅ Se actualiza automáticamente
+        remove(index) {
+            this.items.splice(index, 1); // ✅ Se actualiza automáticamente
         }
     }
 }
@@ -329,35 +329,35 @@ function Lista() {
 
 ---
 
-### `r-enlace` (o `:`)
+### `r-bind` (o `:`)
 
 Vincula atributos HTML dinámicamente.
 
-**Sintaxis corta:** `:atributo="valor"`
+**Sintaxis corta:** `:attribute="value"`
 
 **Uso:**
 ```html
-<div r-datos="{
+<div r-data="{
     itemId: 42,
     color: 'red',
-    activo: true,
-    cargando: false
+    active: true,
+    loading: false
 }">
     <!-- Atributos normales -->
     <div :id="'item-' + itemId"></div>
 
     <!-- Atributos booleanos -->
-    <button :disabled="cargando">Guardar</button>
-    <input type="checkbox" :checked="activo">
+    <button :disabled="loading">Save</button>
+    <input type="checkbox" :checked="active">
 
     <!-- Class (string) -->
-    <div :class="activo ? 'active' : 'inactive'"></div>
+    <div :class="active ? 'active' : 'inactive'"></div>
 
     <!-- Class (objeto) -->
     <div :class="{
-        'active': activo,
-        'disabled': !activo,
-        'loading': cargando
+        'active': active,
+        'disabled': !active,
+        'loading': loading
     }"></div>
 
     <!-- Style (string) -->
@@ -371,65 +371,65 @@ Vincula atributos HTML dinámicamente.
     }"></div>
 
     <!-- Src de imagen -->
-    <img :src="'/images/' + imagen + '.png'" :alt="descripcion">
+    <img :src="'/images/' + image + '.png'" :alt="description">
 </div>
 ```
 
 ---
 
-### `r-evento` (o `@`)
+### `r-on` (o `@`)
 
 Escucha eventos del DOM.
 
-**Sintaxis corta:** `@evento="codigo"`
+**Sintaxis corta:** `@event="code"`
 
 **Uso básico:**
 ```html
-<div r-datos="{ contador: 0 }">
+<div r-data="{ count: 0 }">
     <!-- Expresión inline -->
-    <button @click="contador++">Incrementar</button>
+    <button @click="count++">Increment</button>
 
     <!-- Llamar método -->
-    <button @click="guardar()">Guardar</button>
+    <button @click="save()">Save</button>
 
     <!-- Pasar parámetros -->
-    <button @click="eliminar(42)">Eliminar</button>
+    <button @click="delete(42)">Delete</button>
 </div>
 ```
 
 **Modificadores:**
 ```html
-<div r-datos="{}">
-    <!-- .prevenir - Previene acción por defecto -->
-    <form @submit.prevenir="handleSubmit()">
-        <button type="submit">Enviar</button>
+<div r-data="{}">
+    <!-- .prevent - Previene acción por defecto -->
+    <form @submit.prevent="handleSubmit()">
+        <button type="submit">Submit</button>
     </form>
 
-    <!-- .detener - Detiene propagación -->
-    <div @click.detener="handleClick()">
-        Click aquí
+    <!-- .stop - Detiene propagación -->
+    <div @click.stop="handleClick()">
+        Click here
     </div>
 
     <!-- .enter - Solo ejecuta cuando se presiona Enter -->
-    <input @keyup.enter="buscar()" placeholder="Presiona Enter">
+    <input @keyup.enter="search()" placeholder="Press Enter">
 
     <!-- .escape - Solo ejecuta cuando se presiona Escape -->
-    <div @keydown.escape="cerrarModal()">Modal</div>
+    <div @keydown.escape="closeModal()">Modal</div>
 
     <!-- .space - Solo ejecuta cuando se presiona Espacio -->
-    <div @keypress.space="activar()">Presiona espacio</div>
+    <div @keypress.space="activate()">Press space</div>
 
     <!-- .tab - Solo ejecuta cuando se presiona Tab -->
-    <input @keydown.tab="siguienteCampo()">
+    <input @keydown.tab="nextField()">
 
     <!-- Múltiples modificadores -->
-    <a href="#" @click.prevenir.detener="handleLink()">Link</a>
+    <a href="#" @click.prevent.stop="handleLink()">Link</a>
 </div>
 ```
 
 **Modificadores disponibles:**
-- `.prevenir` - Llama `event.preventDefault()`
-- `.detener` - Llama `event.stopPropagation()`
+- `.prevent` - Llama `event.preventDefault()`
+- `.stop` - Llama `event.stopPropagation()`
 - `.enter` - Solo ejecuta cuando se presiona Enter
 - `.escape` - Solo ejecuta cuando se presiona Escape
 - `.space` - Solo ejecuta cuando se presiona Espacio
@@ -437,24 +437,24 @@ Escucha eventos del DOM.
 
 **Eventos comunes:**
 ```html
-<div r-datos="{ valor: '' }">
+<div r-data="{ value: '' }">
     <!-- Click -->
-    <button @click="accion()">Click</button>
+    <button @click="action()">Click</button>
 
     <!-- Input (en tiempo real) -->
-    <input @input="buscar()">
+    <input @input="search()">
 
     <!-- Change (al perder foco) -->
-    <select @change="cambioSeleccion()">...</select>
+    <select @change="selectionChanged()">...</select>
 
     <!-- Submit -->
-    <form @submit.prevenir="enviar()">...</form>
+    <form @submit.prevent="submit()">...</form>
 
     <!-- Teclado -->
-    <input @keyup.enter="confirmar()">
+    <input @keyup.enter="confirm()">
 
     <!-- Mouse -->
-    <div @mouseenter="mostrar()" @mouseleave="ocultar()">
+    <div @mouseenter="show()" @mouseleave="hide()">
         Hover me
     </div>
 </div>
@@ -462,23 +462,23 @@ Escucha eventos del DOM.
 
 ---
 
-### `r-efecto`
+### `r-effect`
 
 Ejecuta código cuando cambian variables reactivas.
 
 **Uso:**
 ```html
 <!-- Efecto simple -->
-<div r-datos="{ contador: 0 }"
-     r-efecto="console.log('Contador cambió:', contador)">
-    <button @click="contador++">Incrementar</button>
+<div r-data="{ count: 0 }"
+     r-effect="console.log('Count changed:', count)">
+    <button @click="count++">Increment</button>
 </div>
 
 <!-- Múltiples dependencias -->
-<div r-datos="{ nombre: '', apellido: '' }"
-     r-efecto="console.log('Nombre completo:', nombre + ' ' + apellido)">
-    <input r-modelo="nombre" placeholder="Nombre">
-    <input r-modelo="apellido" placeholder="Apellido">
+<div r-data="{ firstName: '', lastName: '' }"
+     r-effect="console.log('Full name:', firstName + ' ' + lastName)">
+    <input r-model="firstName" placeholder="First Name">
+    <input r-model="lastName" placeholder="Last Name">
 </div>
 ```
 
@@ -488,55 +488,55 @@ Ejecuta código cuando cambian variables reactivas.
 
 ## Propiedades Mágicas
 
-### `$elemento`
+### `$element`
 
 Referencia al elemento DOM del componente.
 
 **Uso:**
 ```javascript
-function MiComponente() {
+function MyComponent() {
     return {
-        resaltar() {
+        highlight() {
             // Acceder al elemento directamente
-            this.$elemento.style.border = '2px solid red';
-            this.$elemento.scrollIntoView();
+            this.$element.style.border = '2px solid red';
+            this.$element.scrollIntoView();
         },
 
-        obtenerAncho() {
-            return this.$elemento.offsetWidth;
+        getWidth() {
+            return this.$element.offsetWidth;
         }
     }
 }
 ```
 
 ```html
-<div r-datos="MiComponente()">
-    <button @click="resaltar()">Resaltar contenedor</button>
+<div r-data="MyComponent()">
+    <button @click="highlight()">Highlight container</button>
 </div>
 ```
 
 ---
 
-### `$siguienteCiclo`
+### `$nextTick`
 
 Espera a que el DOM se actualice antes de ejecutar código.
 
 **Uso:**
 ```javascript
-function GaleriaImagenes() {
+function ImageGallery() {
     return {
-        imagenes: [],
+        images: [],
 
-        async agregarImagen(img) {
+        async addImage(img) {
             // Agregar imagen al array
-            this.imagenes.push(img);
+            this.images.push(img);
 
             // Esperar a que el DOM se actualice
-            await this.$siguienteCiclo();
+            await this.$nextTick();
 
             // Ahora el elemento existe en el DOM
             const canvas = document.getElementById('canvas-0');
-            this.dibujarEnCanvas(canvas, img);
+            this.drawOnCanvas(canvas, img);
         }
     }
 }
@@ -554,11 +554,11 @@ function GaleriaImagenes() {
 ### Contador Simple
 
 ```html
-<div r-datos="{ contador: 0 }">
-    <h1 r-texto="contador"></h1>
-    <button @click="contador++">+</button>
-    <button @click="contador--">-</button>
-    <button @click="contador = 0">Reset</button>
+<div r-data="{ count: 0 }">
+    <h1 r-text="count"></h1>
+    <button @click="count++">+</button>
+    <button @click="count--">-</button>
+    <button @click="count = 0">Reset</button>
 </div>
 ```
 
@@ -567,65 +567,65 @@ function GaleriaImagenes() {
 ### Formulario con Validación
 
 ```html
-<div r-datos="Formulario()">
-    <form @submit.prevenir="enviar()">
+<div r-data="Form()">
+    <form @submit.prevent="submit()">
         <input
             type="text"
-            r-modelo="nombre"
-            placeholder="Nombre">
+            r-model="name"
+            placeholder="Name">
 
         <input
             type="email"
-            r-modelo="email"
+            r-model="email"
             placeholder="Email">
 
-        <p r-mostrar="error" r-texto="error" style="color: red;"></p>
+        <p r-show="error" r-text="error" style="color: red;"></p>
 
         <button
             type="submit"
-            :disabled="enviando">
-            <span r-texto="enviando ? 'Enviando...' : 'Enviar'"></span>
+            :disabled="submitting">
+            <span r-text="submitting ? 'Submitting...' : 'Submit'"></span>
         </button>
     </form>
 </div>
 
 <script>
-function Formulario() {
+function Form() {
     return {
-        nombre: '',
+        name: '',
         email: '',
         error: '',
-        enviando: false,
+        submitting: false,
 
-        async enviar() {
+        async submit() {
             this.error = '';
 
-            if (!this.nombre || !this.email) {
-                this.error = 'Todos los campos son requeridos';
+            if (!this.name || !this.email) {
+                this.error = 'All fields are required';
                 return;
             }
 
-            this.enviando = true;
+            this.submitting = true;
 
             try {
-                const respuesta = await fetch('/api/contacto', {
+                const response = await fetch('/api/contact', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        nombre: this.nombre,
+                        name: this.name,
                         email: this.email
                     })
                 });
 
-                if (respuesta.ok) {
-                    alert('Formulario enviado!');
-                    this.nombre = '';
+                if (response.ok) {
+                    alert('Form submitted!');
+                    this.name = '';
                     this.email = '';
                 }
             } catch (e) {
-                this.error = 'Error al enviar';
+                this.error = 'Error submitting form';
             } finally {
-                this.enviando = false;
+                this.submitting = false;
             }
         }
     }
@@ -638,57 +638,57 @@ function Formulario() {
 ### Lista de Tareas
 
 ```html
-<div r-datos="ListaTareas()">
+<div r-data="TodoList()">
     <input
-        r-modelo="nuevaTarea"
-        @keyup.enter="agregar()"
-        placeholder="Nueva tarea">
+        r-model="newTodo"
+        @keyup.enter="add()"
+        placeholder="New task">
 
-    <button @click="agregar()">Agregar</button>
+    <button @click="add()">Add</button>
 
     <ul>
-        <template r-para="(tarea, indice) en tareas" :clave="indice">
+        <template r-for="(todo, index) in todos" :key="index">
             <li>
                 <input
                     type="checkbox"
-                    :checked="tarea.completada"
-                    @change="toggleTarea(indice)">
+                    :checked="todo.completed"
+                    @change="toggleTodo(index)">
 
                 <span
-                    r-texto="tarea.texto"
-                    :style="{ textDecoration: tarea.completada ? 'line-through' : 'none' }">
+                    r-text="todo.text"
+                    :style="{ textDecoration: todo.completed ? 'line-through' : 'none' }">
                 </span>
 
-                <button @click="eliminar(indice)">X</button>
+                <button @click="remove(index)">X</button>
             </li>
         </template>
     </ul>
 
-    <p r-mostrar="tareas.length === 0">No hay tareas</p>
+    <p r-show="todos.length === 0">No tasks</p>
 </div>
 
 <script>
-function ListaTareas() {
+function TodoList() {
     return {
-        tareas: [],
-        nuevaTarea: '',
+        todos: [],
+        newTodo: '',
 
-        agregar() {
-            if (this.nuevaTarea.trim()) {
-                this.tareas.push({
-                    texto: this.nuevaTarea,
-                    completada: false
+        add() {
+            if (this.newTodo.trim()) {
+                this.todos.push({
+                    text: this.newTodo,
+                    completed: false
                 });
-                this.nuevaTarea = '';
+                this.newTodo = '';
             }
         },
 
-        eliminar(indice) {
-            this.tareas.splice(indice, 1);
+        remove(index) {
+            this.todos.splice(index, 1);
         },
 
-        toggleTarea(indice) {
-            this.tareas[indice].completada = !this.tareas[indice].completada;
+        toggleTodo(index) {
+            this.todos[index].completed = !this.todos[index].completed;
         }
     }
 }
@@ -700,50 +700,50 @@ function ListaTareas() {
 ### Select Dinámico con API
 
 ```html
-<div r-datos="SelectAPI()">
-    <label r-texto="etiqueta"></label>
+<div r-data="SelectAPI()">
+    <label r-text="label"></label>
 
-    <select r-modelo="seleccionado" @change="onChange()">
-        <option value="">Seleccionar...</option>
-        <template r-para="item en items" :clave="item.id">
-            <option :value="item.id" r-texto="item.nombre"></option>
+    <select r-model="selected" @change="onChange()">
+        <option value="">Select...</option>
+        <template r-for="item in items" :key="item.id">
+            <option :value="item.id" r-text="item.name"></option>
         </template>
     </select>
 
-    <span r-mostrar="cargando">Cargando...</span>
-    <p r-mostrar="error" r-texto="error" style="color: red;"></p>
+    <span r-show="loading">Loading...</span>
+    <p r-show="error" r-text="error" style="color: red;"></p>
 </div>
 
 <script>
 function SelectAPI() {
     return {
-        etiqueta: 'Seleccione una opción',
+        label: 'Select an option',
         items: [],
-        seleccionado: '',
-        cargando: false,
+        selected: '',
+        loading: false,
         error: '',
 
         async init() {
-            await this.cargarItems();
+            await this.loadItems();
         },
 
-        async cargarItems() {
-            this.cargando = true;
+        async loadItems() {
+            this.loading = true;
             this.error = '';
 
             try {
-                const respuesta = await fetch('/api/items');
-                this.items = await respuesta.json();
+                const response = await fetch('/api/items');
+                this.items = await response.json();
             } catch (e) {
-                this.error = 'Error al cargar datos';
+                this.error = 'Error loading data';
             } finally {
-                this.cargando = false;
+                this.loading = false;
             }
         },
 
         onChange() {
-            const item = this.items.find(i => i.id == this.seleccionado);
-            console.log('Seleccionado:', item);
+            const item = this.items.find(i => i.id == this.selected);
+            console.log('Selected:', item);
         }
     }
 }
@@ -755,38 +755,38 @@ function SelectAPI() {
 ### Tabs (Pestañas)
 
 ```html
-<div r-datos="{ tabActual: 'inicio' }">
+<div r-data="{ currentTab: 'home' }">
     <div>
         <button
-            @click="tabActual = 'inicio'"
-            :class="{ 'active': tabActual === 'inicio' }">
-            Inicio
+            @click="currentTab = 'home'"
+            :class="{ 'active': currentTab === 'home' }">
+            Home
         </button>
         <button
-            @click="tabActual = 'perfil'"
-            :class="{ 'active': tabActual === 'perfil' }">
-            Perfil
+            @click="currentTab = 'profile'"
+            :class="{ 'active': currentTab === 'profile' }">
+            Profile
         </button>
         <button
-            @click="tabActual = 'config'"
-            :class="{ 'active': tabActual === 'config' }">
-            Configuración
+            @click="currentTab = 'settings'"
+            :class="{ 'active': currentTab === 'settings' }">
+            Settings
         </button>
     </div>
 
-    <div r-mostrar="tabActual === 'inicio'">
-        <h2>Inicio</h2>
-        <p>Contenido de inicio...</p>
+    <div r-show="currentTab === 'home'">
+        <h2>Home</h2>
+        <p>Home content...</p>
     </div>
 
-    <div r-mostrar="tabActual === 'perfil'">
-        <h2>Perfil</h2>
-        <p>Contenido de perfil...</p>
+    <div r-show="currentTab === 'profile'">
+        <h2>Profile</h2>
+        <p>Profile content...</p>
     </div>
 
-    <div r-mostrar="tabActual === 'config'">
-        <h2>Configuración</h2>
-        <p>Contenido de configuración...</p>
+    <div r-show="currentTab === 'settings'">
+        <h2>Settings</h2>
+        <p>Settings content...</p>
     </div>
 </div>
 ```
@@ -796,24 +796,24 @@ function SelectAPI() {
 ### Modal/Diálogo
 
 ```html
-<div r-datos="{ abierto: false }">
-    <button @click="abierto = true">Abrir Modal</button>
+<div r-data="{ open: false }">
+    <button @click="open = true">Open Modal</button>
 
     <!-- Overlay -->
     <div
-        r-mostrar="abierto"
-        @click="abierto = false"
+        r-show="open"
+        @click="open = false"
         style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);">
 
         <!-- Modal -->
         <div
-            @click.detener
+            @click.stop
             style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px;">
 
-            <h2>Mi Modal</h2>
-            <p>Contenido del modal...</p>
+            <h2>My Modal</h2>
+            <p>Modal content...</p>
 
-            <button @click="abierto = false">Cerrar</button>
+            <button @click="open = false">Close</button>
         </div>
     </div>
 </div>

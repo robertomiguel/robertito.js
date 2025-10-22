@@ -8,84 +8,84 @@
   'use strict';
 
   // Sistema de reactividad básico usando Proxy (con reactividad profunda)
-  const hacerReactivo = (objeto) => {
+  const makeReactive = (obj) => {
     // Si ya es reactivo, retornar el mismo objeto
-    if (objeto && objeto.__esProxy) return objeto;
+    if (obj && obj.__isProxy) return obj;
 
     // No hacer reactivo a tipos especiales
-    if (objeto instanceof Element || objeto instanceof Node || typeof objeto === 'function') {
-      return objeto;
+    if (obj instanceof Element || obj instanceof Node || typeof obj === 'function') {
+      return obj;
     }
 
-    const manejadores = new Map();
+    const handlers = new Map();
 
-    const disparar = (clave) => {
-      if (manejadores.has(clave)) {
-        manejadores.get(clave).forEach(fn => fn());
+    const trigger = (key) => {
+      if (handlers.has(key)) {
+        handlers.get(key).forEach(fn => fn());
       }
     };
 
-    const observar = (clave, fn) => {
-      if (!manejadores.has(clave)) manejadores.set(clave, new Set());
-      manejadores.get(clave).add(fn);
+    const observe = (key, fn) => {
+      if (!handlers.has(key)) handlers.set(key, new Set());
+      handlers.get(key).add(fn);
     };
 
     // Para arrays, necesitamos interceptar los métodos mutadores en el Proxy
-    const esArray = Array.isArray(objeto);
+    const isArray = Array.isArray(obj);
 
-    return new Proxy(objeto, {
-      get(objetivo, clave) {
-        if (clave === '__observar') return observar;
-        if (clave === '__disparar') return disparar;
-        if (clave === '__esProxy') return true;
-        if (clave === '__raw') return objetivo;
+    return new Proxy(obj, {
+      get(target, key) {
+        if (key === '__observe') return observe;
+        if (key === '__trigger') return trigger;
+        if (key === '__isProxy') return true;
+        if (key === '__raw') return target;
 
-        const valor = objetivo[clave];
+        const value = target[key];
 
         // Para arrays, interceptar métodos mutadores
-        if (esArray) {
-          const metodosArray = ['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse'];
-          if (metodosArray.includes(clave)) {
+        if (isArray) {
+          const arrayMethods = ['push', 'pop', 'shift', 'unshift', 'splice', 'sort', 'reverse'];
+          if (arrayMethods.includes(key)) {
             return function(...args) {
-              const resultado = Array.prototype[clave].apply(objetivo, args);
+              const result = Array.prototype[key].apply(target, args);
               // Disparar el cambio para que los observadores se ejecuten
-              disparar('length');
-              disparar(clave);
-              return resultado;
+              trigger('length');
+              trigger(key);
+              return result;
             };
           }
           // Para otros accesos, retornar el valor tal cual
-          return valor;
+          return value;
         }
 
         // Para objetos, hacer reactivos los sub-objetos
-        if (valor !== null && typeof valor === 'object' && !valor.__esProxy) {
+        if (value !== null && typeof value === 'object' && !value.__isProxy) {
           // No hacer reactivos objetos especiales
-          if (valor instanceof Element || valor instanceof Node || typeof valor === 'function') {
-            return valor;
+          if (value instanceof Element || value instanceof Node || typeof value === 'function') {
+            return value;
           }
 
           // TAMBIÉN hacer reactivos los arrays para que tengan observadores
-          objetivo[clave] = hacerReactivo(valor);
-          return objetivo[clave];
+          target[key] = makeReactive(value);
+          return target[key];
         }
 
-        return valor;
+        return value;
       },
-      set(objetivo, clave, valor) {
-        const valorAnterior = objetivo[clave];
+      set(target, key, value) {
+        const oldValue = target[key];
 
         // Si el nuevo valor es un objeto (pero NO un array), hacerlo reactivo
-        if (valor !== null && typeof valor === 'object' && !valor.__esProxy && !Array.isArray(valor)) {
-          if (!(valor instanceof Element) && !(valor instanceof Node) && typeof valor !== 'function') {
-            valor = hacerReactivo(valor);
+        if (value !== null && typeof value === 'object' && !value.__isProxy && !Array.isArray(value)) {
+          if (!(value instanceof Element) && !(value instanceof Node) && typeof value !== 'function') {
+            value = makeReactive(value);
           }
         }
 
-        objetivo[clave] = valor;
+        target[key] = value;
 
-        if (valorAnterior !== valor) {
-          disparar(clave);
+        if (oldValue !== value) {
+          trigger(key);
         }
         return true;
       }
@@ -93,18 +93,18 @@
   };
 
   // Cola para actualizaciones del DOM
-  let colaActualizacion = new Set();
-  let ejecutandoCola = false;
+  let updateQueue = new Set();
+  let isFlushing = false;
 
-  const encolarActualizacion = (fn) => {
-    colaActualizacion.add(fn);
-    if (!ejecutandoCola) {
-      ejecutandoCola = true;
+  const queueUpdate = (fn) => {
+    updateQueue.add(fn);
+    if (!isFlushing) {
+      isFlushing = true;
       Promise.resolve().then(() => {
-        const cola = Array.from(colaActualizacion);
-        colaActualizacion.clear();
-        ejecutandoCola = false;
-        cola.forEach(fn => {
+        const queue = Array.from(updateQueue);
+        updateQueue.clear();
+        isFlushing = false;
+        queue.forEach(fn => {
           try {
             fn();
           } catch(e) {
@@ -116,32 +116,32 @@
   };
 
   // Contexto de evaluación
-  const evaluar = (elemento, expresion, alcance = {}) => {
+  const evaluate = (element, expression, scope = {}) => {
     try {
-      const funcion = new Function('$datos', '$elemento', '$siguienteCiclo', `with($datos) { return ${expresion} }`);
-      return funcion(alcance, elemento, siguienteCiclo);
+      const fn = new Function('$data', '$element', '$nextTick', `with($data) { return ${expression} }`);
+      return fn(scope, element, nextTick);
     } catch (e) {
       // Solo mostrar error si NO es un error de null/undefined
       if (!(e instanceof TypeError && (e.message.includes('Cannot read properties of null') || e.message.includes('Cannot read properties of undefined')))) {
-        console.error(`Error evaluando: ${expresion}`, e);
+        console.error(`Error evaluando: ${expression}`, e);
       }
       return undefined;
     }
   };
 
-  const evaluarSentencia = (elemento, expresion, alcance = {}) => {
+  const evaluateStatement = (element, expression, scope = {}) => {
     try {
-      const funcion = new Function('$datos', '$elemento', '$siguienteCiclo', `with($datos) { ${expresion} }`);
-      return funcion(alcance, elemento, siguienteCiclo);
+      const fn = new Function('$data', '$element', '$nextTick', `with($data) { ${expression} }`);
+      return fn(scope, element, nextTick);
     } catch (e) {
-      console.error(`Error evaluando sentencia: ${expresion}`, e);
+      console.error(`Error evaluando sentencia: ${expression}`, e);
     }
   };
 
   // Utilidades
-  const siguienteCiclo = (callback) => {
+  const nextTick = (callback) => {
     return new Promise(resolve => {
-      encolarActualizacion(() => {
+      queueUpdate(() => {
         callback && callback();
         resolve();
       });
@@ -149,329 +149,329 @@
   };
 
   // Store global para componentes procesados
-  const elementosProcesados = new WeakMap();
+  const processedElements = new WeakMap();
 
   // Procesador de directivas
-  class ProcesadorDirectivas {
-    constructor(elemento, alcance) {
-      this.elemento = elemento;
-      this.alcance = alcance;
-      this.limpiezas = [];
-      this.observadores = new Set();
+  class DirectiveProcessor {
+    constructor(element, scope) {
+      this.element = element;
+      this.scope = scope;
+      this.cleanups = [];
+      this.observers = new Set();
     }
 
-    // r-datos
-    procesarDatos(expresion) {
-      let datos;
+    // r-data
+    processData(expression) {
+      let data;
 
-      if (expresion.trim() === '') {
-        datos = {};
+      if (expression.trim() === '') {
+        data = {};
       } else {
         // Evaluar la expresión en el contexto del alcance padre
-        datos = evaluar(this.elemento, expresion, this.alcance);
+        data = evaluate(this.element, expression, this.scope);
       }
 
-      if (typeof datos === 'object' && datos !== null) {
+      if (typeof data === 'object' && data !== null) {
         // NO crear un nuevo proxy, usar el objeto tal cual
         // Si ya es reactivo (proxy), usarlo directamente
         // Si no es reactivo, convertirlo
-        if (!datos.__esProxy) {
-          this.alcance = hacerReactivo(datos);
+        if (!data.__isProxy) {
+          this.scope = makeReactive(data);
         } else {
-          this.alcance = datos;
+          this.scope = data;
         }
 
         // Agregar propiedades mágicas al alcance
-        if (!this.alcance.$siguienteCiclo) {
-          this.alcance.$siguienteCiclo = siguienteCiclo;
+        if (!this.scope.$nextTick) {
+          this.scope.$nextTick = nextTick;
         }
-        if (!this.alcance.$elemento) {
-          this.alcance.$elemento = this.elemento;
+        if (!this.scope.$element) {
+          this.scope.$element = this.element;
         }
 
         // Guardar referencia en el elemento
-        this.elemento._r_alcanceDatos = this.alcance;
+        this.element._r_scopeData = this.scope;
 
         // NO ejecutar init aquí, se ejecutará después
-      } else if (datos === undefined && this.alcance) {
+      } else if (data === undefined && this.scope) {
         // Si datos es undefined, mantener el alcance padre
         // Esto permite que los elementos sin r-datos hereden el alcance
-        // No hacemos nada, this.alcance ya tiene el alcance padre
-        return this.alcance;
+        // No hacemos nada, this.scope ya tiene el alcance padre
+        return this.scope;
       }
 
-      return this.alcance;
+      return this.scope;
     }
 
-    // r-inicio
-    procesarInicio(expresion) {
-      const resultado = evaluarSentencia(this.elemento, expresion, this.alcance);
+    // r-init
+    processInit(expression) {
+      const result = evaluateStatement(this.element, expression, this.scope);
 
       // Si retorna una promesa, esperarla y luego procesar los hijos
-      if (resultado && typeof resultado.then === 'function') {
-        resultado.then(() => {
+      if (result && typeof result.then === 'function') {
+        result.then(() => {
           // Después de que termine el init async, procesar los hijos
-          encolarActualizacion(() => {
+          queueUpdate(() => {
             // Limpiar el WeakMap para los hijos para que puedan ser reprocesados
-            const limpiarProcesados = (elemento) => {
-              elementosProcesados.delete(elemento);
-              Array.from(elemento.children).forEach(hijo => limpiarProcesados(hijo));
+            const clearProcessed = (element) => {
+              processedElements.delete(element);
+              Array.from(element.children).forEach(child => clearProcessed(child));
             };
 
-            Array.from(this.elemento.children).forEach(hijo => {
-              limpiarProcesados(hijo);
-              procesarElemento(hijo, this.alcance);
+            Array.from(this.element.children).forEach(child => {
+              clearProcessed(child);
+              processElement(child, this.scope);
             });
           });
         }).catch(e => {
-          console.error('Error en r-inicio asíncrono:', e);
+          console.error('Error en r-init asíncrono:', e);
         });
 
-        return resultado;
+        return result;
       }
 
       return null;
     }
 
-    // r-efecto
-    procesarEfecto(expresion) {
-      const ejecutarEfecto = () => {
-        evaluarSentencia(this.elemento, expresion, this.alcance);
+    // r-effect
+    processEffect(expression) {
+      const runEffect = () => {
+        evaluateStatement(this.element, expression, this.scope);
       };
 
       // Ejecutar inmediatamente
-      encolarActualizacion(ejecutarEfecto);
+      queueUpdate(runEffect);
 
       // Observar cambios en el alcance
-      if (this.alcance && this.alcance.__observar) {
-        Object.keys(this.alcance).forEach(clave => {
-          if (!clave.startsWith('__') && !clave.startsWith('_r_')) {
-            this.alcance.__observar(clave, ejecutarEfecto);
-            this.observadores.add(() => {}); // Track que tenemos observadores
+      if (this.scope && this.scope.__observe) {
+        Object.keys(this.scope).forEach(key => {
+          if (!key.startsWith('__') && !key.startsWith('_r_')) {
+            this.scope.__observe(key, runEffect);
+            this.observers.add(() => {}); // Track que tenemos observadores
           }
         });
       }
     }
 
-    // r-mostrar
-    procesarMostrar(expresion) {
-      const actualizar = () => {
-        const mostrar = evaluar(this.elemento, expresion, this.alcance);
-        this.elemento.style.display = mostrar ? '' : 'none';
+    // r-show
+    processShow(expression) {
+      const update = () => {
+        const show = evaluate(this.element, expression, this.scope);
+        this.element.style.display = show ? '' : 'none';
       };
 
-      actualizar();
+      update();
 
-      if (this.alcance && this.alcance.__observar) {
-        this.observarExpresion(expresion, actualizar);
+      if (this.scope && this.scope.__observe) {
+        this.observeExpression(expression, update);
       }
     }
 
-    // r-texto
-    procesarTexto(expresion) {
-      const actualizar = () => {
-        const texto = evaluar(this.elemento, expresion, this.alcance);
-        this.elemento.textContent = texto ?? '';
+    // r-text
+    processText(expression) {
+      const update = () => {
+        const text = evaluate(this.element, expression, this.scope);
+        this.element.textContent = text ?? '';
       };
 
-      actualizar();
+      update();
 
-      if (this.alcance && this.alcance.__observar) {
-        this.observarExpresion(expresion, actualizar);
+      if (this.scope && this.scope.__observe) {
+        this.observeExpression(expression, update);
       }
     }
 
-    // r-modelo
-    procesarModelo(expresion) {
-      const actualizar = () => {
-        const valor = evaluar(this.elemento, expresion, this.alcance);
+    // r-model
+    processModel(expression) {
+      const update = () => {
+        const value = evaluate(this.element, expression, this.scope);
 
-        if (this.elemento.type === 'checkbox') {
-          this.elemento.checked = !!valor;
-        } else if (this.elemento.type === 'radio') {
-          this.elemento.checked = this.elemento.value === valor;
+        if (this.element.type === 'checkbox') {
+          this.element.checked = !!value;
+        } else if (this.element.type === 'radio') {
+          this.element.checked = this.element.value === value;
         } else {
-          this.elemento.value = valor ?? '';
+          this.element.value = value ?? '';
         }
       };
 
-      actualizar();
+      update();
 
       // Listener para cambios del usuario
-      const manejador = (e) => {
-        let valor;
-        if (this.elemento.type === 'checkbox') {
-          valor = this.elemento.checked;
-        } else if (this.elemento.type === 'number') {
-          valor = this.elemento.valueAsNumber;
+      const handler = (e) => {
+        let value;
+        if (this.element.type === 'checkbox') {
+          value = this.element.checked;
+        } else if (this.element.type === 'number') {
+          value = this.element.valueAsNumber;
         } else {
-          valor = this.elemento.value;
+          value = this.element.value;
         }
 
         // Actualizar el alcance usando ruta
-        this.establecerValorPorRuta(this.alcance, expresion, valor);
+        this.setValueByPath(this.scope, expression, value);
       };
 
-      this.elemento.addEventListener('input', manejador);
-      this.limpiezas.push(() => this.elemento.removeEventListener('input', manejador));
+      this.element.addEventListener('input', handler);
+      this.cleanups.push(() => this.element.removeEventListener('input', handler));
 
-      if (this.alcance && this.alcance.__observar) {
-        this.observarExpresion(expresion, actualizar);
+      if (this.scope && this.scope.__observe) {
+        this.observeExpression(expression, update);
       }
     }
 
     // Helper para setear valores por ruta (ej: "configuracion.pasos")
-    establecerValorPorRuta(objeto, ruta, valor) {
-      const claves = ruta.split('.');
-      let actual = objeto;
+    setValueByPath(obj, path, value) {
+      const keys = path.split('.');
+      let current = obj;
 
-      for (let i = 0; i < claves.length - 1; i++) {
-        if (!actual[claves[i]]) {
-          actual[claves[i]] = {};
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]]) {
+          current[keys[i]] = {};
         }
-        actual = actual[claves[i]];
+        current = current[keys[i]];
       }
 
-      actual[claves[claves.length - 1]] = valor;
+      current[keys[keys.length - 1]] = value;
     }
 
-    // r-enlace / :
-    procesarEnlace(atributo, expresion) {
-      const actualizar = () => {
-        const valor = evaluar(this.elemento, expresion, this.alcance);
+    // r-bind / :
+    processBind(attribute, expression) {
+      const update = () => {
+        const value = evaluate(this.element, expression, this.scope);
 
-        if (atributo === 'class') {
+        if (attribute === 'class') {
           // Manejar enlace de clase
-          if (typeof valor === 'string') {
-            this.elemento.className = valor;
-          } else if (typeof valor === 'object') {
-            Object.keys(valor).forEach(clase => {
-              if (valor[clase]) {
-                this.elemento.classList.add(clase);
+          if (typeof value === 'string') {
+            this.element.className = value;
+          } else if (typeof value === 'object') {
+            Object.keys(value).forEach(className => {
+              if (value[className]) {
+                this.element.classList.add(className);
               } else {
-                this.elemento.classList.remove(clase);
+                this.element.classList.remove(className);
               }
             });
           }
-        } else if (atributo === 'style') {
+        } else if (attribute === 'style') {
           // Manejar enlace de estilo
-          if (typeof valor === 'string') {
-            this.elemento.setAttribute('style', valor);
-          } else if (typeof valor === 'object') {
-            Object.assign(this.elemento.style, valor);
+          if (typeof value === 'string') {
+            this.element.setAttribute('style', value);
+          } else if (typeof value === 'object') {
+            Object.assign(this.element.style, value);
           }
-        } else if (atributo === 'disabled' || atributo === 'checked' || atributo === 'selected') {
+        } else if (attribute === 'disabled' || attribute === 'checked' || attribute === 'selected') {
           // Atributos booleanos
-          if (valor) {
-            this.elemento.setAttribute(atributo, '');
-            if (atributo === 'disabled') this.elemento.disabled = true;
-            if (atributo === 'checked') this.elemento.checked = true;
-            if (atributo === 'selected') this.elemento.selected = true;
+          if (value) {
+            this.element.setAttribute(attribute, '');
+            if (attribute === 'disabled') this.element.disabled = true;
+            if (attribute === 'checked') this.element.checked = true;
+            if (attribute === 'selected') this.element.selected = true;
           } else {
-            this.elemento.removeAttribute(atributo);
-            if (atributo === 'disabled') this.elemento.disabled = false;
-            if (atributo === 'checked') this.elemento.checked = false;
-            if (atributo === 'selected') this.elemento.selected = false;
+            this.element.removeAttribute(attribute);
+            if (attribute === 'disabled') this.element.disabled = false;
+            if (attribute === 'checked') this.element.checked = false;
+            if (attribute === 'selected') this.element.selected = false;
           }
         } else {
           // Atributos regulares
-          if (valor === null || valor === undefined || valor === false) {
-            this.elemento.removeAttribute(atributo);
+          if (value === null || value === undefined || value === false) {
+            this.element.removeAttribute(attribute);
           } else {
-            this.elemento.setAttribute(atributo, valor);
+            this.element.setAttribute(attribute, value);
           }
         }
       };
 
-      actualizar();
+      update();
 
-      if (this.alcance && this.alcance.__observar) {
-        this.observarExpresion(expresion, actualizar);
+      if (this.scope && this.scope.__observe) {
+        this.observeExpression(expression, update);
       }
     }
 
-    // r-evento / @
-    procesarEvento(evento, expresion, modificadores = []) {
-      const manejador = (e) => {
+    // r-on / @
+    processEvent(event, expression, modifiers = []) {
+      const handler = (e) => {
         // Modificadores de teclado
-        if (modificadores.includes('enter') && e.key !== 'Enter') return;
-        if (modificadores.includes('escape') && e.key !== 'Escape') return;
-        if (modificadores.includes('space') && e.key !== ' ') return;
-        if (modificadores.includes('tab') && e.key !== 'Tab') return;
+        if (modifiers.includes('enter') && e.key !== 'Enter') return;
+        if (modifiers.includes('escape') && e.key !== 'Escape') return;
+        if (modifiers.includes('space') && e.key !== ' ') return;
+        if (modifiers.includes('tab') && e.key !== 'Tab') return;
 
         // Modificadores de comportamiento
-        if (modificadores.includes('prevenir')) {
+        if (modifiers.includes('prevent')) {
           e.preventDefault();
         }
-        if (modificadores.includes('detener')) {
+        if (modifiers.includes('stop')) {
           e.stopPropagation();
         }
 
-        evaluarSentencia(this.elemento, expresion, this.alcance);
+        evaluateStatement(this.element, expression, this.scope);
       };
 
-      this.elemento.addEventListener(evento, manejador);
-      this.limpiezas.push(() => this.elemento.removeEventListener(evento, manejador));
+      this.element.addEventListener(event, handler);
+      this.cleanups.push(() => this.element.removeEventListener(event, handler));
     }
 
-    // r-para
-    procesarPara(plantilla, expresion) {
-      // Parsear expresión: "item in items" o "(item, indice) in items"
-      const coincidencia = expresion.match(/^(.+?)\s+en\s+(.+)$/);
-      if (!coincidencia) {
-        console.error('Expresión r-para inválida:', expresion);
+    // r-for
+    processFor(template, expression) {
+      // Parsear expresión: "item in items" o "(item, index) in items"
+      const match = expression.match(/^(.+?)\s+in\s+(.+)$/);
+      if (!match) {
+        console.error('Expresión r-for inválida:', expression);
         return;
       }
 
-      let nombreItem = coincidencia[1].trim();
-      let nombreIndice = null;
-      const expresionArray = coincidencia[2].trim();
+      let itemName = match[1].trim();
+      let indexName = null;
+      const arrayExpression = match[2].trim();
 
-      // Detectar sintaxis (item, indice)
-      if (nombreItem.startsWith('(') && nombreItem.endsWith(')')) {
-        const partes = nombreItem.slice(1, -1).split(',').map(p => p.trim());
-        nombreItem = partes[0];
-        nombreIndice = partes[1] || 'indice';
+      // Detectar sintaxis (item, index)
+      if (itemName.startsWith('(') && itemName.endsWith(')')) {
+        const parts = itemName.slice(1, -1).split(',').map(p => p.trim());
+        itemName = parts[0];
+        indexName = parts[1] || 'index';
       }
 
-      const padre = plantilla.parentElement;
-      const comentario = document.createComment('r-para');
-      padre.insertBefore(comentario, plantilla);
-      plantilla.remove();
+      const parent = template.parentElement;
+      const comment = document.createComment('r-for');
+      parent.insertBefore(comment, template);
+      template.remove();
 
-      let elementosRenderizados = [];
+      let renderedElements = [];
 
-      const actualizar = () => {
-        const array = evaluar(plantilla, expresionArray, this.alcance);
+      const update = () => {
+        const array = evaluate(template, arrayExpression, this.scope);
 
         // Pausar el observador para evitar procesamiento duplicado
-        pausarObservador();
+        pauseObserver();
 
         // Limpiar elementos anteriores
-        elementosRenderizados.forEach(item => {
-          if (item.elemento && item.elemento.parentNode) {
-            item.elemento.remove();
+        renderedElements.forEach(item => {
+          if (item.element && item.element.parentNode) {
+            item.element.remove();
           }
         });
-        elementosRenderizados = [];
+        renderedElements = [];
 
         if (!Array.isArray(array)) {
-          reanudarObservador();
+          resumeObserver();
           return;
         }
 
         // Renderizar nuevos elementos
-        for (let indice = 0; indice < array.length; indice++) {
-          const item = array[indice];
-          const clon = plantilla.content.cloneNode(true);
-          const primerElemento = clon.firstElementChild;
+        for (let index = 0; index < array.length; index++) {
+          const item = array[index];
+          const clone = template.content.cloneNode(true);
+          const firstElement = clone.firstElementChild;
 
-          if (primerElemento) {
+          if (firstElement) {
             // Crear alcance para este item
-            const alcanceItem = Object.create(this.alcance);
+            const itemScope = Object.create(this.scope);
 
             // Definir propiedades propias para item
-            Object.defineProperty(alcanceItem, nombreItem, {
+            Object.defineProperty(itemScope, itemName, {
               value: item,
               writable: true,
               enumerable: true,
@@ -479,231 +479,231 @@
             });
 
             // Definir índice con el nombre correcto
-            const nombreIndiceFinal = nombreIndice || 'indice';
-            Object.defineProperty(alcanceItem, nombreIndiceFinal, {
-              value: indice,
+            const finalIndexName = indexName || 'index';
+            Object.defineProperty(itemScope, finalIndexName, {
+              value: index,
               writable: true,
               enumerable: true,
               configurable: true
             });
 
             // Procesar el elemento clonado
-            procesarElemento(primerElemento, alcanceItem);
+            processElement(firstElement, itemScope);
 
             // Insertar en el DOM
-            padre.insertBefore(primerElemento, comentario);
-            elementosRenderizados.push({ elemento: primerElemento, alcance: alcanceItem });
+            parent.insertBefore(firstElement, comment);
+            renderedElements.push({ element: firstElement, scope: itemScope });
           }
         }
 
         // Resumir el observador después de un pequeño delay
-        setTimeout(() => reanudarObservador(), 10);
+        setTimeout(() => resumeObserver(), 10);
       };
 
       // Ejecutar actualización inicial
-      actualizar();
+      update();
 
       // Configurar observador solo una vez
-      if (this.alcance && this.alcance.__observar && !plantilla._r_paraObservadorConfigurado) {
-        plantilla._r_paraObservadorConfigurado = true;
-        this.observarExpresion(expresionArray, actualizar);
+      if (this.scope && this.scope.__observe && !template._r_forObserverConfigured) {
+        template._r_forObserverConfigured = true;
+        this.observeExpression(arrayExpression, update);
       }
     }
 
     // Helper para observar expresiones
-    observarExpresion(expresion, callback) {
-      if (!this.alcance || !this.alcance.__observar) return;
+    observeExpression(expression, callback) {
+      if (!this.scope || !this.scope.__observe) return;
 
       // Extraer variables de la expresión
-      const variables = expresion.match(/[a-zA-Z_$][a-zA-Z0-9_$]*/g) || [];
-      const variablesUnicas = [...new Set(variables)];
+      const variables = expression.match(/[a-zA-Z_$][a-zA-Z0-9_$]*/g) || [];
+      const uniqueVariables = [...new Set(variables)];
 
-      variablesUnicas.forEach(v => {
-        const variableRaiz = v.split('.')[0];
-        if (this.alcance[variableRaiz] !== undefined &&
-            !variableRaiz.startsWith('$') &&
-            !variableRaiz.startsWith('_')) {
-          this.alcance.__observar(variableRaiz, callback);
+      uniqueVariables.forEach(v => {
+        const rootVariable = v.split('.')[0];
+        if (this.scope[rootVariable] !== undefined &&
+            !rootVariable.startsWith('$') &&
+            !rootVariable.startsWith('_')) {
+          this.scope.__observe(rootVariable, callback);
 
           // Para arrays reactivos, también observar 'length' y métodos mutadores
-          const valorArray = this.alcance[variableRaiz];
-          if (Array.isArray(valorArray) && valorArray.__observar) {
-            valorArray.__observar('length', callback);
-            valorArray.__observar('unshift', callback);
-            valorArray.__observar('push', callback);
-            valorArray.__observar('pop', callback);
-            valorArray.__observar('shift', callback);
-            valorArray.__observar('splice', callback);
+          const arrayValue = this.scope[rootVariable];
+          if (Array.isArray(arrayValue) && arrayValue.__observe) {
+            arrayValue.__observe('length', callback);
+            arrayValue.__observe('unshift', callback);
+            arrayValue.__observe('push', callback);
+            arrayValue.__observe('pop', callback);
+            arrayValue.__observe('shift', callback);
+            arrayValue.__observe('splice', callback);
           }
 
-          this.observadores.add(callback);
+          this.observers.add(callback);
         }
       });
     }
 
-    limpiar() {
-      this.limpiezas.forEach(fn => fn());
-      this.limpiezas = [];
-      this.observadores.clear();
+    cleanup() {
+      this.cleanups.forEach(fn => fn());
+      this.cleanups = [];
+      this.observers.clear();
     }
   }
 
   // Procesar un elemento y sus directivas
-  const procesarElemento = (elemento, alcancePadre = null) => {
-    if (!elemento || elemento.nodeType !== 1) return;
+  const processElement = (element, parentScope = null) => {
+    if (!element || element.nodeType !== 1) return;
 
     // Verificar si ya fue procesado
-    if (elementosProcesados.has(elemento)) {
-      // Si es un template con r-para, NUNCA reprocesar
-      if (elemento.tagName === 'TEMPLATE' && elemento.hasAttribute('r-para')) {
+    if (processedElements.has(element)) {
+      // Si es un template con r-for, NUNCA reprocesar
+      if (element.tagName === 'TEMPLATE' && element.hasAttribute('r-for')) {
         return;
       }
       return;
     }
-    elementosProcesados.set(elemento, true);
+    processedElements.set(element, true);
 
-    const procesador = new ProcesadorDirectivas(elemento, alcancePadre);
-    let alcanceActual = alcancePadre;
+    const processor = new DirectiveProcessor(element, parentScope);
+    let currentScope = parentScope;
 
     // Obtener alcance del elemento padre si existe
-    if (!alcanceActual && elemento.parentElement) {
-      let padre = elemento.parentElement;
-      while (padre && !alcanceActual) {
-        alcanceActual = padre._r_alcanceDatos;
-        padre = padre.parentElement;
+    if (!currentScope && element.parentElement) {
+      let parent = element.parentElement;
+      while (parent && !currentScope) {
+        currentScope = parent._r_scopeData;
+        parent = parent.parentElement;
       }
     }
 
-    procesador.alcance = alcanceActual;
+    processor.scope = currentScope;
 
-    // Procesar r-datos primero
-    let tieneInicio = false;
-    if (elemento.hasAttribute('r-datos')) {
-      const expresion = elemento.getAttribute('r-datos');
-      alcanceActual = procesador.procesarDatos(expresion);
-      procesador.alcance = alcanceActual;
+    // Procesar r-data primero
+    let hasInit = false;
+    if (element.hasAttribute('r-data')) {
+      const expression = element.getAttribute('r-data');
+      currentScope = processor.processData(expression);
+      processor.scope = currentScope;
 
-      // Si hay r-inicio, ejecutarlo ANTES de procesar hijos
-      if (elemento.hasAttribute('r-inicio')) {
-        tieneInicio = true;
-        const resultado = procesador.procesarInicio(elemento.getAttribute('r-inicio'));
+      // Si hay r-init, ejecutarlo ANTES de procesar hijos
+      if (element.hasAttribute('r-init')) {
+        hasInit = true;
+        const result = processor.processInit(element.getAttribute('r-init'));
 
         // Si el inicio retorna una promesa (async), los hijos se procesarán después
-        if (resultado && typeof resultado.then === 'function') {
+        if (result && typeof result.then === 'function') {
           // No procesar hijos aquí, se procesarán cuando termine el async init
           return;
         }
       }
-    } else if (elemento.hasAttribute('r-inicio')) {
-      // Si no hay r-datos pero sí r-inicio
-      tieneInicio = true;
-      procesador.procesarInicio(elemento.getAttribute('r-inicio'));
+    } else if (element.hasAttribute('r-init')) {
+      // Si no hay r-data pero sí r-init
+      hasInit = true;
+      processor.processInit(element.getAttribute('r-init'));
     }
 
-    // Procesar r-para en templates (antes de otros atributos)
-    if (elemento.tagName === 'TEMPLATE' && elemento.hasAttribute('r-para')) {
+    // Procesar r-for en templates (antes de otros atributos)
+    if (element.tagName === 'TEMPLATE' && element.hasAttribute('r-for')) {
       // Marcar como procesado ANTES de procesarlo para evitar loops infinitos
-      const expresionPara = elemento.getAttribute('r-para');
+      const forExpression = element.getAttribute('r-for');
 
       // Verificar si este template ya tiene un procesador activo
-      if (!elemento._r_paraProcesado) {
-        elemento._r_paraProcesado = true;
-        procesador.procesarPara(elemento, expresionPara);
+      if (!element._r_forProcessed) {
+        element._r_forProcessed = true;
+        processor.processFor(element, forExpression);
       }
 
       return; // No procesar hijos del template
     }
 
-    // Procesar r-efecto
-    if (elemento.hasAttribute('r-efecto')) {
-      procesador.procesarEfecto(elemento.getAttribute('r-efecto'));
+    // Procesar r-effect
+    if (element.hasAttribute('r-effect')) {
+      processor.processEffect(element.getAttribute('r-effect'));
     }
 
-    // Procesar r-mostrar
-    if (elemento.hasAttribute('r-mostrar')) {
-      procesador.procesarMostrar(elemento.getAttribute('r-mostrar'));
+    // Procesar r-show
+    if (element.hasAttribute('r-show')) {
+      processor.processShow(element.getAttribute('r-show'));
     }
 
-    // Procesar r-texto
-    if (elemento.hasAttribute('r-texto')) {
-      procesador.procesarTexto(elemento.getAttribute('r-texto'));
+    // Procesar r-text
+    if (element.hasAttribute('r-text')) {
+      processor.processText(element.getAttribute('r-text'));
     }
 
-    // Procesar r-modelo
-    if (elemento.hasAttribute('r-modelo')) {
-      procesador.procesarModelo(elemento.getAttribute('r-modelo'));
+    // Procesar r-model
+    if (element.hasAttribute('r-model')) {
+      processor.processModel(element.getAttribute('r-model'));
     }
 
-    // Procesar r-enlace y : shorthand
-    Array.from(elemento.attributes).forEach(atributo => {
-      if (atributo.name.startsWith('r-enlace:')) {
-        const nombreAtributo = atributo.name.substring(9);
-        procesador.procesarEnlace(nombreAtributo, atributo.value);
-      } else if (atributo.name.startsWith(':') && atributo.name !== ':clave') {
-        const nombreAtributo = atributo.name.substring(1);
-        procesador.procesarEnlace(nombreAtributo, atributo.value);
+    // Procesar r-bind y : shorthand
+    Array.from(element.attributes).forEach(attr => {
+      if (attr.name.startsWith('r-bind:')) {
+        const attrName = attr.name.substring(7);
+        processor.processBind(attrName, attr.value);
+      } else if (attr.name.startsWith(':') && attr.name !== ':key') {
+        const attrName = attr.name.substring(1);
+        processor.processBind(attrName, attr.value);
       }
     });
 
-    // Procesar r-evento y @ shorthand
-    Array.from(elemento.attributes).forEach(atributo => {
-      if (atributo.name.startsWith('r-evento:')) {
-        const partes = atributo.name.substring(9).split('.');
-        const evento = partes[0];
-        const modificadores = partes.slice(1);
-        procesador.procesarEvento(evento, atributo.value, modificadores);
-      } else if (atributo.name.startsWith('@')) {
-        const partes = atributo.name.substring(1).split('.');
-        const evento = partes[0];
-        const modificadores = partes.slice(1);
-        procesador.procesarEvento(evento, atributo.value, modificadores);
+    // Procesar r-on y @ shorthand
+    Array.from(element.attributes).forEach(attr => {
+      if (attr.name.startsWith('r-on:')) {
+        const parts = attr.name.substring(5).split('.');
+        const event = parts[0];
+        const modifiers = parts.slice(1);
+        processor.processEvent(event, attr.value, modifiers);
+      } else if (attr.name.startsWith('@')) {
+        const parts = attr.name.substring(1).split('.');
+        const event = parts[0];
+        const modifiers = parts.slice(1);
+        processor.processEvent(event, attr.value, modifiers);
       }
     });
 
     // Procesar hijos recursivamente
-    Array.from(elemento.children).forEach(hijo => {
-      procesarElemento(hijo, alcanceActual);
+    Array.from(element.children).forEach(child => {
+      processElement(child, currentScope);
     });
   };
 
   // Observador para detectar cambios dinámicos en el DOM
-  let observador = null;
-  let observadorPausado = false;
+  let observer = null;
+  let observerPaused = false;
 
-  const pausarObservador = () => {
-    observadorPausado = true;
+  const pauseObserver = () => {
+    observerPaused = true;
   };
 
-  const reanudarObservador = () => {
-    observadorPausado = false;
+  const resumeObserver = () => {
+    observerPaused = false;
   };
 
-  const iniciarObservador = () => {
-    if (observador) return;
+  const startObserver = () => {
+    if (observer) return;
 
-    observador = new MutationObserver((mutaciones) => {
-      if (observadorPausado) return;
+    observer = new MutationObserver((mutations) => {
+      if (observerPaused) return;
 
-      mutaciones.forEach((mutacion) => {
+      mutations.forEach((mutation) => {
         // Procesar nodos agregados
-        mutacion.addedNodes.forEach((nodo) => {
-          if (nodo.nodeType === 1) {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === 1) {
             // Procesar el nodo y sus descendientes
-            recorrerDOM(nodo, (elemento) => {
-              if (elemento.hasAttribute && (
-                elemento.hasAttribute('r-datos') ||
-                elemento.hasAttribute('r-inicio') ||
-                elemento.hasAttribute('r-mostrar') ||
-                elemento.hasAttribute('r-texto') ||
-                elemento.hasAttribute('r-modelo') ||
-                elemento.hasAttribute('r-para') ||
-                Array.from(elemento.attributes).some(a =>
+            traverseDOM(node, (element) => {
+              if (element.hasAttribute && (
+                element.hasAttribute('r-data') ||
+                element.hasAttribute('r-init') ||
+                element.hasAttribute('r-show') ||
+                element.hasAttribute('r-text') ||
+                element.hasAttribute('r-model') ||
+                element.hasAttribute('r-for') ||
+                Array.from(element.attributes).some(a =>
                   a.name.startsWith('r-') ||
                   a.name.startsWith(':') ||
                   a.name.startsWith('@')
                 )
               )) {
-                procesarElemento(elemento);
+                processElement(element);
               }
             });
           }
@@ -711,7 +711,7 @@
       });
     });
 
-    observador.observe(document.body, {
+    observer.observe(document.body, {
       childList: true,
       subtree: true,
       attributes: false
@@ -719,39 +719,39 @@
   };
 
   // Helper para recorrer el DOM
-  const recorrerDOM = (elemento, callback) => {
-    if (!elemento || elemento.nodeType !== 1) return;
+  const traverseDOM = (element, callback) => {
+    if (!element || element.nodeType !== 1) return;
 
-    callback(elemento);
+    callback(element);
 
-    Array.from(elemento.children).forEach(hijo => {
-      recorrerDOM(hijo, callback);
+    Array.from(element.children).forEach(child => {
+      traverseDOM(child, callback);
     });
   };
 
   // Inicializar
-  const iniciar = () => {
+  const init = () => {
     // Procesar todos los elementos con directivas r-
-    document.querySelectorAll('[r-datos]').forEach(elemento => {
-      procesarElemento(elemento);
+    document.querySelectorAll('[r-data]').forEach(element => {
+      processElement(element);
     });
 
     // Iniciar observador para detectar elementos agregados dinámicamente
-    iniciarObservador();
+    startObserver();
   };
 
   // API pública
   window.Robertito = {
-    iniciar: iniciar,
+    init: init,
     version: '1.0.0',
-    procesarElemento: procesarElemento,
+    processElement: processElement,
   };
 
   // Auto-iniciar cuando el DOM esté listo
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', iniciar);
+    document.addEventListener('DOMContentLoaded', init);
   } else {
-    iniciar();
+    init();
   }
 
 })();
